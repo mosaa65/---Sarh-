@@ -11,7 +11,8 @@ import {
   BarChart3, 
   Settings,
   Bell,
-  Search
+  Search,
+  LogOut
 } from 'lucide-react'
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { Button } from '@/components/ui/button'
@@ -19,6 +20,16 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { PlaceHolderImages } from '@/lib/placeholder-images'
+import { useAuth, useUser } from '@/firebase'
+import { signOut } from 'firebase/auth'
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu'
 
 const navigation = [
   { name: 'لوحة التحكم', href: '/', icon: LayoutDashboard },
@@ -31,7 +42,13 @@ const navigation = [
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const adminAvatar = PlaceHolderImages.find(img => img.id === 'admin-avatar')?.imageUrl || 'https://picsum.photos/seed/admin/100/100';
+  const auth = useAuth()
+  const { user } = useUser()
+  const defaultAvatar = PlaceHolderImages.find(img => img.id === 'user-avatar')?.imageUrl || 'https://picsum.photos/seed/mada4/100/100';
+
+  const handleSignOut = async () => {
+    await signOut(auth)
+  }
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -77,7 +94,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           </SidebarFooter>
         </Sidebar>
 
-        <main className="flex-1 flex flex-col h-screen overflow-hidden">
+        <main className="flex-1 flex flex-col h-screen overflow-hidden text-right">
           <header className="h-16 border-b bg-card px-8 flex items-center justify-between sticky top-0 z-10 shrink-0">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="md:hidden" />
@@ -97,14 +114,26 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                 <span className="absolute top-2 left-2 size-2 bg-destructive rounded-full border-2 border-card" />
               </Button>
               <div className="flex items-center gap-3 pr-4 border-r">
-                <div className="text-left">
-                  <p className="text-sm font-bold font-headline">أحمد المالك</p>
-                  <p className="text-[10px] text-muted-foreground">مسؤول النظام</p>
+                <div className="text-left hidden sm:block">
+                  <p className="text-sm font-bold font-headline">{user?.displayName || 'مستخدم'}</p>
+                  <p className="text-[10px] text-muted-foreground">{user?.email}</p>
                 </div>
-                <Avatar className="size-9 ring-2 ring-primary/10">
-                  <AvatarImage src={adminAvatar} />
-                  <AvatarFallback>AM</AvatarFallback>
-                </Avatar>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Avatar className="size-9 ring-2 ring-primary/10 cursor-pointer">
+                      <AvatarImage src={user?.photoURL || defaultAvatar} />
+                      <AvatarFallback>{user?.email?.substring(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel className="text-right">حسابي</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="justify-end gap-2 text-destructive focus:text-destructive" onClick={handleSignOut}>
+                      تسجيل الخروج
+                      <LogOut className="size-4" />
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </header>

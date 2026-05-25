@@ -3,6 +3,7 @@ import type {Metadata} from 'next';
 import './globals.css';
 import {Toaster} from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
+import { AuthGate } from '@/components/auth/auth-gate';
 
 export const metadata: Metadata = {
   title: 'Mada Enma - Property Management',
@@ -23,7 +24,9 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased bg-background text-foreground">
         <FirebaseClientProvider>
-          {children}
+          <AuthGate>
+            {children}
+          </AuthGate>
           <Toaster />
         </FirebaseClientProvider>
       </body>
