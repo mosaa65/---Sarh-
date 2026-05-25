@@ -55,11 +55,12 @@ export default function LoginPage() {
       }
       router.push('/')
     } catch (error: any) {
-      console.error(error)
       let message = "حدث خطأ أثناء العملية."
-      if (error.code === 'auth/email-already-in-use') message = "البريد الإلكتروني مستخدم بالفعل."
-      if (error.code === 'auth/weak-password') message = "كلمة المرور ضعيفة جداً."
+      if (error.code === 'auth/email-already-in-use') message = "البريد الإلكتروني مستخدم بالفعل. حاول تسجيل الدخول."
+      if (error.code === 'auth/weak-password') message = "كلمة المرور ضعيفة جداً. يجب أن تكون 6 أحرف على الأقل."
       if (error.code === 'auth/invalid-credential') message = "بيانات الدخول غير صحيحة."
+      if (error.code === 'auth/user-not-found') message = "لم يتم العثور على حساب بهذا البريد."
+      if (error.code === 'auth/wrong-password') message = "كلمة المرور غير صحيحة."
       
       toast({
         variant: "destructive",
