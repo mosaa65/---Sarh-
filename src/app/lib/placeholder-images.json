@@ -1,0 +1,28 @@
+{
+  "placeholderImages": [
+    {
+      "id": "hero-property",
+      "description": "Luxury residential building",
+      "imageUrl": "https://picsum.photos/seed/mada1/1200/800",
+      "imageHint": "residential building"
+    },
+    {
+      "id": "apartment-interior",
+      "description": "Modern apartment interior",
+      "imageUrl": "https://picsum.photos/seed/mada2/800/600",
+      "imageHint": "apartment interior"
+    },
+    {
+      "id": "commercial-unit",
+      "description": "Modern office space",
+      "imageUrl": "https://picsum.photos/seed/mada3/800/600",
+      "imageHint": "office space"
+    },
+    {
+      "id": "user-avatar",
+      "description": "User profile avatar",
+      "imageUrl": "https://picsum.photos/seed/mada4/100/100",
+      "imageHint": "person portrait"
+    }
+  ]
+}
