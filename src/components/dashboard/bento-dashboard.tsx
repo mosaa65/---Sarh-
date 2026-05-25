@@ -1,48 +1,82 @@
 "use client"
 
-import React from 'react'
+import React, { useMemo } from 'react'
 import { StatCard } from './stat-card'
 import { Building2, Users, FileWarning, TrendingUp, Calendar, ArrowUpRight, FileText, CreditCard } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
+import { useCollection, useFirestore } from '@/firebase'
+import { collection, query, orderBy, limit } from 'firebase/firestore'
+import { format, isAfter, addDays, parseISO } from 'date-fns'
+import { ar } from 'date-fns/locale'
 
 export function BentoDashboard() {
+  const db = useFirestore()
+  
+  // جلب البيانات من المجموعات المختلفة
+  const { data: properties, loading: propsLoading } = useCollection(collection(db, 'properties'))
+  const { data: tenants, loading: tenantsLoading } = useCollection(collection(db, 'tenants'))
+  const { data: contracts, loading: contractsLoading } = useCollection(
+    query(collection(db, 'contracts'), orderBy('endDate', 'asc'), limit(4))
+  )
+
+  // حساب الإحصائيات
+  const stats = useMemo(() => {
+    if (!properties || !tenants) return { 
+      totalProps: 0, 
+      totalUnits: 0, 
+      activeTenants: 0, 
+      monthlyIncome: 0,
+      occupiedUnits: 0,
+      occupancyRate: 0 
+    }
+
+    const totalProps = properties.length
+    const totalUnits = properties.reduce((acc: number, p: any) => acc + (Number(p.units) || 0), 0)
+    const occupiedUnits = properties.reduce((acc: number, p: any) => acc + (Number(p.occupiedUnits) || 0), 0)
+    const activeTenants = tenants.filter((t: any) => t.status === 'active').length
+    const monthlyIncome = properties.reduce((acc: number, p: any) => acc + (Number(p.monthlyIncome) || 0), 0)
+    const occupancyRate = totalUnits > 0 ? Math.round((occupiedUnits / totalUnits) * 100) : 0
+
+    return { totalProps, totalUnits, activeTenants, monthlyIncome, occupiedUnits, occupancyRate }
+  }, [properties, tenants])
+
+  const isLoading = propsLoading || tenantsLoading
+
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-3xl font-extrabold font-headline tracking-tight text-slate-900">أهلاً بك مجدداً، أحمد 👋</h2>
-        <p className="text-slate-500 mt-1">نظرة سريعة على أداء محفظتك العقارية لهذا اليوم.</p>
+        <h2 className="text-3xl font-extrabold font-headline tracking-tight text-slate-900">أهلاً بك مجدداً 👋</h2>
+        <p className="text-slate-500 mt-1">نظرة سريعة على أداء محفظتك العقارية الحقيقية.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
           label="إجمالي العقارات" 
-          value="42" 
-          description="8 مباني، 34 وحدات" 
+          value={isLoading ? '...' : stats.totalProps} 
+          description={`${stats.totalUnits} وحدات إجمالية`} 
           icon={Building2} 
-          trend={{ value: 4, isPositive: true }}
         />
         <StatCard 
           label="المستأجرين النشطين" 
-          value="31" 
-          description="بنسبة إشغال 91%" 
+          value={isLoading ? '...' : stats.activeTenants} 
+          description={`بنسبة إشغال ${stats.occupancyRate}%`} 
           icon={Users} 
         />
         <StatCard 
-          label="الإيجارات المتأخرة" 
-          value="12,400 ر.س" 
-          description="5 مستأجرين متأخرين" 
+          label="المستحقات المتأخرة" 
+          value="-- ر.س" 
+          description="جارٍ حساب المتأخرات..." 
           icon={FileWarning} 
           className="bg-destructive/5"
         />
         <StatCard 
-          label="الدخل الشهري" 
-          value="158,000 ر.س" 
-          description="زيادة 12% عن الشهر الماضي" 
+          label="الدخل الشهري المتوقع" 
+          value={isLoading ? '...' : `${stats.monthlyIncome.toLocaleString()} ر.س`} 
+          description="بناءً على العقود النشطة" 
           icon={TrendingUp} 
-          trend={{ value: 12, isPositive: true }}
           className="bg-primary text-primary-foreground"
         />
       </div>
@@ -52,36 +86,42 @@ export function BentoDashboard() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div>
               <CardTitle className="font-headline">العقود التي تنتهي قريباً</CardTitle>
-              <CardDescription>لديك 4 عقود ستنتهي خلال الـ 30 يوماً القادمة.</CardDescription>
+              <CardDescription>
+                {contractsLoading ? 'جاري جلب العقود...' : contracts.length > 0 ? `لديك ${contracts.length} عقود تنتهي قريباً.` : 'لا يوجد عقود تنتهي قريباً.'}
+              </CardDescription>
             </div>
             <Button variant="outline" size="sm">عرض الكل</Button>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {[
-                { name: 'محمد العتيبي', property: 'عمارة السلام - شقة 102', date: '15 مارس 2024', status: 'critical' },
-                { name: 'شركة التقنية المحدودة', property: 'برج النخيل - مكتب 401', date: '28 مارس 2024', status: 'warning' },
-                { name: 'سارة القحطاني', property: 'فيلا المرجان', date: '5 أبريل 2024', status: 'normal' },
-                { name: 'عبدالله محمد', property: 'عمارة السلام - محل 3', date: '12 أبريل 2024', status: 'normal' },
-              ].map((item, i) => (
-                <div key={i} className="flex items-center justify-between p-4 bg-muted/30 rounded-xl hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-white p-2 rounded-lg shadow-sm">
-                      <Calendar className="size-5 text-primary" />
+              {contractsLoading ? (
+                [1, 2].map(i => <div key={i} className="h-16 bg-muted animate-pulse rounded-xl" />)
+              ) : contracts.length > 0 ? (
+                contracts.map((contract: any, i: number) => {
+                  const isCritical = isAfter(addDays(new Date(), 15), parseISO(contract.endDate))
+                  return (
+                    <div key={i} className="flex items-center justify-between p-4 bg-muted/30 rounded-xl hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center gap-4">
+                        <div className="bg-white p-2 rounded-lg shadow-sm">
+                          <Calendar className="size-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm">عقد رقم: {contract.id?.substring(0, 8)}</p>
+                          <p className="text-xs text-muted-foreground">قيمة الإيجار: {contract.rentAmount} ر.س</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium">{contract.endDate}</p>
+                        <Badge variant={isCritical ? 'destructive' : 'outline'} className="text-[10px] h-5">
+                          {isCritical ? 'عاجل' : 'قريباً'}
+                        </Badge>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-bold text-sm">{item.name}</p>
-                      <p className="text-xs text-muted-foreground">{item.property}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium">{item.date}</p>
-                    <Badge variant={item.status === 'critical' ? 'destructive' : item.status === 'warning' ? 'secondary' : 'outline'} className="text-[10px] h-5">
-                      {item.status === 'critical' ? 'عاجل' : item.status === 'warning' ? 'تذكير' : 'قريباً'}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
+                  )
+                })
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">لا توجد عقود مسجلة حالياً</div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -96,10 +136,20 @@ export function BentoDashboard() {
               <div className="relative size-40">
                 <svg className="size-full" viewBox="0 0 36 36">
                   <circle cx="18" cy="18" r="16" fill="none" className="stroke-muted" strokeWidth="3"></circle>
-                  <circle cx="18" cy="18" r="16" fill="none" className="stroke-primary" strokeWidth="3" strokeDasharray="91, 100" strokeLinecap="round"></circle>
+                  <circle 
+                    cx="18" 
+                    cy="18" 
+                    r="16" 
+                    fill="none" 
+                    className="stroke-primary" 
+                    strokeWidth="3" 
+                    strokeDasharray={`${stats.occupancyRate}, 100`} 
+                    strokeLinecap="round"
+                    transform="rotate(-90 18 18)"
+                  ></circle>
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                  <span className="text-3xl font-extrabold font-headline">91%</span>
+                  <span className="text-3xl font-extrabold font-headline">{stats.occupancyRate}%</span>
                   <span className="text-[10px] text-muted-foreground uppercase tracking-wider">مؤجر</span>
                 </div>
               </div>
@@ -110,24 +160,17 @@ export function BentoDashboard() {
                   <div className="size-2 bg-primary rounded-full" />
                   <span>وحدات مؤجرة</span>
                 </div>
-                <span className="font-bold">31 وحدة</span>
+                <span className="font-bold">{stats.occupiedUnits} وحدة</span>
               </div>
               <div className="flex justify-between items-center text-sm">
                 <div className="flex items-center gap-2">
                   <div className="size-2 bg-muted-foreground rounded-full" />
                   <span>وحدات شاغرة</span>
                 </div>
-                <span className="font-bold">3 وحدات</span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="size-2 bg-accent rounded-full" />
-                  <span>تحت الصيانة</span>
-                </div>
-                <span className="font-bold">2 وحدة</span>
+                <span className="font-bold">{stats.totalUnits - stats.occupiedUnits} وحدات</span>
               </div>
             </div>
-            <Button className="w-full gap-2 mt-2">
+            <Button className="w-full gap-2 mt-2" variant="outline">
               عرض تفاصيل الوحدات <ArrowUpRight className="size-4" />
             </Button>
           </CardContent>
@@ -141,11 +184,11 @@ export function BentoDashboard() {
           </CardHeader>
           <CardContent>
             <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold">84%</span>
+              <span className="text-2xl font-bold">-- %</span>
               <span className="text-xs text-muted-foreground">من الهدف الشهري</span>
             </div>
-            <Progress value={84} className="h-2 mt-4" />
-            <p className="text-xs text-muted-foreground mt-4">تم تحصيل 132,720 ر.س من أصل 158,000 ر.س</p>
+            <Progress value={0} className="h-2 mt-4" />
+            <p className="text-xs text-muted-foreground mt-4">سجل المدفوعات لعرض التحصيل</p>
           </CardContent>
         </Card>
         
@@ -154,21 +197,29 @@ export function BentoDashboard() {
             <CardTitle className="text-base font-headline">الإجراءات السريعة</CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Button variant="outline" className="h-24 flex-col gap-2 rounded-xl border-dashed">
-              <Building2 className="size-6 text-primary" />
-              <span className="text-xs font-bold">إضافة عقار</span>
+            <Button variant="outline" className="h-24 flex-col gap-2 rounded-xl border-dashed" asChild>
+              <a href="/properties">
+                <Building2 className="size-6 text-primary" />
+                <span className="text-xs font-bold">إضافة عقار</span>
+              </a>
             </Button>
-            <Button variant="outline" className="h-24 flex-col gap-2 rounded-xl border-dashed">
-              <Users className="size-6 text-primary" />
-              <span className="text-xs font-bold">تسجيل مستأجر</span>
+            <Button variant="outline" className="h-24 flex-col gap-2 rounded-xl border-dashed" asChild>
+              <a href="/tenants">
+                <Users className="size-6 text-primary" />
+                <span className="text-xs font-bold">تسجيل مستأجر</span>
+              </a>
             </Button>
-            <Button variant="outline" className="h-24 flex-col gap-2 rounded-xl border-dashed">
-              <FileText className="size-6 text-primary" />
-              <span className="text-xs font-bold">إنشاء عقد</span>
+            <Button variant="outline" className="h-24 flex-col gap-2 rounded-xl border-dashed" asChild>
+              <a href="/contracts">
+                <FileText className="size-6 text-primary" />
+                <span className="text-xs font-bold">إنشاء عقد</span>
+              </a>
             </Button>
-            <Button variant="outline" className="h-24 flex-col gap-2 rounded-xl border-dashed">
-              <CreditCard className="size-6 text-primary" />
-              <span className="text-xs font-bold">سند قبض</span>
+            <Button variant="outline" className="h-24 flex-col gap-2 rounded-xl border-dashed" asChild>
+              <a href="/payments">
+                <CreditCard className="size-6 text-primary" />
+                <span className="text-xs font-bold">سند قبض</span>
+              </a>
             </Button>
           </CardContent>
         </Card>

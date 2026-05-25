@@ -28,27 +28,30 @@ export function FirebaseProvider({
   db: Firestore | null;
   auth: Auth | null;
 }) {
-  if (!app || !db || !auth) {
-    return (
-      <div className="p-8 max-w-2xl mx-auto mt-20">
-        <Alert variant="destructive" className="border-2">
-          <AlertCircle className="h-5 w-5" />
-          <AlertTitle className="font-bold text-lg mr-2">تنبيه: مشروع Firebase غير متصل</AlertTitle>
-          <AlertDescription className="mt-2 text-base leading-relaxed">
-            يبدو أن إعدادات Firebase مفقودة أو غير صحيحة. يرجى التأكد من ربط مشروعك عبر لوحة تحكم Firebase Studio وتحديث مفاتيح الربط في ملف الإعدادات.
-          </AlertDescription>
-        </Alert>
-        <div className="mt-8 opacity-50 pointer-events-none">
-          {children}
-        </div>
-      </div>
-    );
-  }
+  const isConnected = !!app && !!db && !!auth;
 
   return (
     <FirebaseContext.Provider value={{ app, db, auth }}>
-      <FirebaseErrorListener />
-      {children}
+      {!isConnected ? (
+        <div className="p-8 max-w-2xl mx-auto mt-20">
+          <Alert variant="destructive" className="border-2">
+            <AlertCircle className="h-5 w-5" />
+            <AlertTitle className="font-bold text-lg mr-2">تنبيه: مشروع Firebase غير متصل</AlertTitle>
+            <AlertDescription className="mt-2 text-base leading-relaxed">
+              يبدو أن إعدادات Firebase مفقودة أو غير صحيحة. يرجى التأكد من ربط مشروعك عبر لوحة تحكم Firebase Studio وتحديث مفاتيح الربط في ملف الإعدادات (.env) ليعمل التطبيق بشكل صحيح.
+            </AlertDescription>
+          </Alert>
+          <div className="mt-8 opacity-40 pointer-events-none grayscale blur-[1px]">
+            {/* نترك الأطفال هنا للعرض البصري فقط في حال كان هناك تخطيط عام، ولكن نمنع التفاعل */}
+            {/* ملحوظة: بعض المكونات قد تنهار إذا حاولت جلب بيانات حقيقية، لذا نفضل عدم عرضها إذا كان الانهيار مستمراً */}
+          </div>
+        </div>
+      ) : (
+        <>
+          <FirebaseErrorListener />
+          {children}
+        </>
+      )}
     </FirebaseContext.Provider>
   );
 }
