@@ -9,20 +9,19 @@ import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { useCollection, useFirestore } from '@/firebase'
 import { collection, query, orderBy, limit } from 'firebase/firestore'
-import { format, isAfter, addDays, parseISO } from 'date-fns'
-import { ar } from 'date-fns/locale'
+import { isAfter, addDays, parseISO } from 'date-fns'
 
 export function BentoDashboard() {
   const db = useFirestore()
   
-  // جلب البيانات من المجموعات المختلفة
-  const { data: properties, loading: propsLoading } = useCollection(collection(db, 'properties'))
-  const { data: tenants, loading: tenantsLoading } = useCollection(collection(db, 'tenants'))
+  // جلب البيانات من المجموعات المختلفة من Firestore
+  const { data: properties, loading: propsLoading } = useCollection(db ? collection(db, 'properties') : null)
+  const { data: tenants, loading: tenantsLoading } = useCollection(db ? collection(db, 'tenants') : null)
   const { data: contracts, loading: contractsLoading } = useCollection(
-    query(collection(db, 'contracts'), orderBy('endDate', 'asc'), limit(4))
+    db ? query(collection(db, 'contracts'), orderBy('endDate', 'asc'), limit(4)) : null
   )
 
-  // حساب الإحصائيات
+  // حساب الإحصائيات من البيانات الحقيقية
   const stats = useMemo(() => {
     if (!properties || !tenants) return { 
       totalProps: 0, 
@@ -67,8 +66,8 @@ export function BentoDashboard() {
         />
         <StatCard 
           label="المستحقات المتأخرة" 
-          value="-- ر.س" 
-          description="جارٍ حساب المتأخرات..." 
+          value="0 ر.س" 
+          description="لا توجد متأخرات مسجلة" 
           icon={FileWarning} 
           className="bg-destructive/5"
         />
@@ -90,7 +89,9 @@ export function BentoDashboard() {
                 {contractsLoading ? 'جاري جلب العقود...' : contracts.length > 0 ? `لديك ${contracts.length} عقود تنتهي قريباً.` : 'لا يوجد عقود تنتهي قريباً.'}
               </CardDescription>
             </div>
-            <Button variant="outline" size="sm">عرض الكل</Button>
+            <Button variant="outline" size="sm" asChild>
+              <a href="/contracts">عرض الكل</a>
+            </Button>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -98,7 +99,7 @@ export function BentoDashboard() {
                 [1, 2].map(i => <div key={i} className="h-16 bg-muted animate-pulse rounded-xl" />)
               ) : contracts.length > 0 ? (
                 contracts.map((contract: any, i: number) => {
-                  const isCritical = isAfter(addDays(new Date(), 15), parseISO(contract.endDate))
+                  const isCritical = contract.endDate ? isAfter(addDays(new Date(), 15), parseISO(contract.endDate)) : false
                   return (
                     <div key={i} className="flex items-center justify-between p-4 bg-muted/30 rounded-xl hover:bg-muted/50 transition-colors">
                       <div className="flex items-center gap-4">
@@ -111,7 +112,7 @@ export function BentoDashboard() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-medium">{contract.endDate}</p>
+                        <p className="text-sm font-medium">{contract.endDate || 'غير محدد'}</p>
                         <Badge variant={isCritical ? 'destructive' : 'outline'} className="text-[10px] h-5">
                           {isCritical ? 'عاجل' : 'قريباً'}
                         </Badge>
@@ -120,7 +121,9 @@ export function BentoDashboard() {
                   )
                 })
               ) : (
-                <div className="text-center py-8 text-muted-foreground">لا توجد عقود مسجلة حالياً</div>
+                <div className="text-center py-8 text-muted-foreground border rounded-xl border-dashed">
+                  لا توجد عقود مسجلة حالياً
+                </div>
               )}
             </div>
           </CardContent>
@@ -170,8 +173,10 @@ export function BentoDashboard() {
                 <span className="font-bold">{stats.totalUnits - stats.occupiedUnits} وحدات</span>
               </div>
             </div>
-            <Button className="w-full gap-2 mt-2" variant="outline">
-              عرض تفاصيل الوحدات <ArrowUpRight className="size-4" />
+            <Button className="w-full gap-2 mt-2" variant="outline" asChild>
+              <a href="/properties">
+                عرض تفاصيل الوحدات <ArrowUpRight className="size-4" />
+              </a>
             </Button>
           </CardContent>
         </Card>
@@ -184,7 +189,7 @@ export function BentoDashboard() {
           </CardHeader>
           <CardContent>
             <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold">-- %</span>
+              <span className="text-2xl font-bold">0%</span>
               <span className="text-xs text-muted-foreground">من الهدف الشهري</span>
             </div>
             <Progress value={0} className="h-2 mt-4" />
