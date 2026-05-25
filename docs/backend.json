@@ -1,0 +1,86 @@
+
+{
+  "entities": {
+    "Property": {
+      "title": "Property",
+      "description": "Represents a managed real estate asset",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the property" },
+        "address": { "type": "string", "description": "Location address" },
+        "type": { "type": "string", "enum": ["residential", "commercial"], "description": "Category of the property" },
+        "units": { "type": "number", "description": "Total number of units" },
+        "occupiedUnits": { "type": "number", "description": "Number of currently rented units" },
+        "monthlyIncome": { "type": "number", "description": "Total monthly revenue in SAR" },
+        "imageUrl": { "type": "string", "format": "uri", "description": "Reference image for the building" }
+      },
+      "required": ["name", "address", "type", "units"]
+    },
+    "Tenant": {
+      "title": "Tenant",
+      "description": "Information about an individual or corporate tenant",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Full name" },
+        "phone": { "type": "string", "description": "Contact number" },
+        "email": { "type": "string", "format": "email", "description": "Email address" },
+        "status": { "type": "string", "enum": ["active", "warning", "inactive"], "description": "Current standing" },
+        "balance": { "type": "number", "description": "Financial balance (negative means debt)" },
+        "avatarUrl": { "type": "string", "format": "uri", "description": "Profile picture" },
+        "propertyId": { "type": "string", "description": "ID of the property they are in" },
+        "unitId": { "type": "string", "description": "Specific unit identifier" }
+      },
+      "required": ["name", "phone", "status"]
+    },
+    "Contract": {
+      "title": "Contract",
+      "description": "Legal rental agreement between landlord and tenant",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "propertyId": { "type": "string" },
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" },
+        "rentAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "expired", "pending"] }
+      },
+      "required": ["tenantId", "propertyId", "startDate", "endDate", "rentAmount"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "Transaction record for rent or services",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "propertyId": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string", "format": "date" },
+        "method": { "type": "string", "enum": ["bank_transfer", "mada", "check", "cash"] },
+        "status": { "type": "string", "enum": ["paid", "pending", "failed"] },
+        "receiptNo": { "type": "string" }
+      },
+      "required": ["tenantId", "amount", "date", "status"]
+    }
+  },
+  "auth": {
+    "providers": ["google.com", "password"]
+  },
+  "firestore": {
+    "/properties/{propertyId}": {
+      "schema": "Property",
+      "description": "Collection of all managed properties"
+    },
+    "/tenants/{tenantId}": {
+      "schema": "Tenant",
+      "description": "Collection of all registered tenants"
+    },
+    "/contracts/{contractId}": {
+      "schema": "Contract",
+      "description": "Digital archive of all rental contracts"
+    },
+    "/payments/{paymentId}": {
+      "schema": "Payment",
+      "description": "Financial transactions ledger"
+    }
+  }
+}
