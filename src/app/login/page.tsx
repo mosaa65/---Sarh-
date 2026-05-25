@@ -5,21 +5,25 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
   signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword,
   signInWithPopup, 
   GoogleAuthProvider,
-  onAuthStateChanged
+  onAuthStateChanged,
+  updateProfile
 } from 'firebase/auth'
 import { useAuth } from '@/firebase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
-import { Building2, Mail, Lock, LogIn, Loader2 } from 'lucide-react'
+import { Building2, Mail, Lock, LogIn, Loader2, UserPlus } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
 export default function LoginPage() {
+  const [isRegistering, setIsRegistering] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [displayName, setDisplayName] = useState('')
   const [loading, setLoading] = useState(false)
   const auth = useAuth()
   const router = useRouter()
@@ -33,17 +37,34 @@ export default function LoginPage() {
     })
   }, [auth, router])
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     try {
-      await signInWithEmailAndPassword(auth, email, password)
+      if (isRegistering) {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+        if (displayName) {
+          await updateProfile(userCredential.user, { displayName })
+        }
+        toast({
+          title: "تم إنشاء الحساب",
+          description: "مرحباً بك في مدى إنماء!",
+        })
+      } else {
+        await signInWithEmailAndPassword(auth, email, password)
+      }
       router.push('/')
     } catch (error: any) {
+      console.error(error)
+      let message = "حدث خطأ أثناء العملية."
+      if (error.code === 'auth/email-already-in-use') message = "البريد الإلكتروني مستخدم بالفعل."
+      if (error.code === 'auth/weak-password') message = "كلمة المرور ضعيفة جداً."
+      if (error.code === 'auth/invalid-credential') message = "بيانات الدخول غير صحيحة."
+      
       toast({
         variant: "destructive",
-        title: "خطأ في تسجيل الدخول",
-        description: "تأكد من صحة البريد الإلكتروني وكلمة المرور.",
+        title: "فشل العملية",
+        description: message,
       })
     } finally {
       setLoading(false)
@@ -80,13 +101,34 @@ export default function LoginPage() {
 
         <Card className="border-none shadow-2xl rounded-3xl overflow-hidden">
           <CardHeader className="space-y-1 pb-6">
-            <CardTitle className="text-2xl font-headline">تسجيل الدخول</CardTitle>
-            <CardDescription>أدخل بياناتك للوصول إلى لوحة التحكم</CardDescription>
+            <CardTitle className="text-2xl font-headline">
+              {isRegistering ? 'إنشاء حساب جديد' : 'تسجيل الدخول'}
+            </CardTitle>
+            <CardDescription>
+              {isRegistering ? 'قم بتعبئة البيانات للبدء في إدارة عقاراتك' : 'أدخل بياناتك للوصول إلى لوحة التحكم'}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <form onSubmit={handleEmailLogin} className="space-y-4">
+            <form onSubmit={handleAuth} className="space-y-4">
+              {isRegistering && (
+                <div className="space-y-2">
+                  <Label htmlFor="name">الاسم الكامل</Label>
+                  <div className="relative">
+                    <UserPlus className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                    <Input 
+                      id="name" 
+                      type="text" 
+                      placeholder="أدخل اسمك" 
+                      className="pr-10"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      required={isRegistering}
+                    />
+                  </div>
+                </div>
+              )}
               <div className="space-y-2">
-                <Label htmlFor="email text-right block">البريد الإلكتروني</Label>
+                <Label htmlFor="email">البريد الإلكتروني</Label>
                 <div className="relative">
                   <Mail className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                   <Input 
@@ -101,12 +143,13 @@ export default function LoginPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password text-right block">كلمة المرور</Label>
+                <Label htmlFor="password">كلمة المرور</Label>
                 <div className="relative">
                   <Lock className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                   <Input 
                     id="password" 
                     type="password" 
+                    placeholder="••••••••"
                     className="pr-10"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -115,8 +158,8 @@ export default function LoginPage() {
                 </div>
               </div>
               <Button type="submit" className="w-full h-12 gap-2 rounded-xl" disabled={loading}>
-                {loading ? <Loader2 className="size-5 animate-spin" /> : <LogIn className="size-5" />}
-                دخول
+                {loading ? <Loader2 className="size-5 animate-spin" /> : isRegistering ? <UserPlus className="size-5" /> : <LogIn className="size-5" />}
+                {isRegistering ? 'إنشاء الحساب' : 'دخول'}
               </Button>
             </form>
 
@@ -151,8 +194,15 @@ export default function LoginPage() {
               سجل دخولك بجوجل
             </Button>
           </CardContent>
-          <CardFooter className="bg-slate-50/50 p-4 text-center">
-            <p className="text-xs text-muted-foreground w-full">بالمتابعة، أنت توافق على شروط الخدمة</p>
+          <CardFooter className="bg-slate-50/50 p-6 flex flex-col gap-2">
+            <Button 
+              variant="link" 
+              className="text-primary w-full" 
+              onClick={() => setIsRegistering(!isRegistering)}
+            >
+              {isRegistering ? 'لديك حساب بالفعل؟ سجل دخولك' : 'ليس لديك حساب؟ أنشئ حساباً جديداً'}
+            </Button>
+            <p className="text-[10px] text-muted-foreground w-full text-center">بالمتابعة، أنت توافق على شروط الخدمة</p>
           </CardFooter>
         </Card>
       </div>
