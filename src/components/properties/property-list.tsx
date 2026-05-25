@@ -7,13 +7,14 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Building2, MapPin, Plus, Search, Filter, Home, Store, Loader2 } from 'lucide-react'
 import Image from 'next/image'
-import { useCollection, useFirestore } from '@/firebase'
+import { useCollection, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
+import { PlaceHolderImages } from '@/lib/placeholder-images'
 
 export function PropertyList() {
   const db = useFirestore();
@@ -21,6 +22,8 @@ export function PropertyList() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const defaultImage = PlaceHolderImages.find(img => img.id === 'property-default')?.imageUrl || 'https://picsum.photos/seed/prop/600/400';
 
   const handleAddProperty = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -34,26 +37,31 @@ export function PropertyList() {
       units: Number(formData.get('units')),
       occupiedUnits: 0,
       monthlyIncome: 0,
-      imageUrl: `https://picsum.photos/seed/${Math.random()}/600/400`,
+      imageUrl: defaultImage,
       createdAt: serverTimestamp(),
     };
 
-    try {
-      addDoc(collection(db, 'properties'), newProperty);
-      toast({
-        title: "تمت الإضافة",
-        description: "تمت إضافة العقار بنجاح إلى السجل.",
+    const propertiesRef = collection(db, 'properties');
+
+    addDoc(propertiesRef, newProperty)
+      .then(() => {
+        toast({
+          title: "تمت الإضافة",
+          description: "تمت إضافة العقار بنجاح إلى السجل.",
+        });
+        setIsDialogOpen(false);
+      })
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: propertiesRef.path,
+          operation: 'create',
+          requestResourceData: newProperty,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
+        setIsSubmitting(false);
       });
-      setIsDialogOpen(false);
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "خطأ",
-        description: "حدث خطأ أثناء إضافة العقار.",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   return (
@@ -140,7 +148,7 @@ export function PropertyList() {
             <Card key={prop.id} className="overflow-hidden group bento-card border-none shadow-md hover:shadow-xl transition-all duration-300">
               <div className="relative h-48 overflow-hidden">
                 <Image 
-                  src={prop.imageUrl || 'https://picsum.photos/seed/prop/600/400'} 
+                  src={prop.imageUrl || defaultImage} 
                   alt={prop.name} 
                   fill 
                   className="object-cover transition-transform duration-500 group-hover:scale-110" 

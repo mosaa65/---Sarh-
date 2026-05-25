@@ -1,6 +1,7 @@
+
 "use client"
 
-import React, { useMemo } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { StatCard } from './stat-card'
 import { Building2, Users, FileWarning, TrendingUp, Calendar, ArrowUpRight, FileText, CreditCard } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -13,15 +14,18 @@ import { isAfter, addDays, parseISO } from 'date-fns'
 
 export function BentoDashboard() {
   const db = useFirestore()
+  const [currentDate, setCurrentDate] = useState<Date | null>(null)
+
+  useEffect(() => {
+    setCurrentDate(new Date())
+  }, [])
   
-  // جلب البيانات من المجموعات المختلفة من Firestore
   const { data: properties, loading: propsLoading } = useCollection(db ? collection(db, 'properties') : null)
   const { data: tenants, loading: tenantsLoading } = useCollection(db ? collection(db, 'tenants') : null)
   const { data: contracts, loading: contractsLoading } = useCollection(
     db ? query(collection(db, 'contracts'), orderBy('endDate', 'asc'), limit(4)) : null
   )
 
-  // حساب الإحصائيات من البيانات الحقيقية
   const stats = useMemo(() => {
     if (!properties || !tenants) return { 
       totalProps: 0, 
@@ -99,7 +103,7 @@ export function BentoDashboard() {
                 [1, 2].map(i => <div key={i} className="h-16 bg-muted animate-pulse rounded-xl" />)
               ) : contracts.length > 0 ? (
                 contracts.map((contract: any, i: number) => {
-                  const isCritical = contract.endDate ? isAfter(addDays(new Date(), 15), parseISO(contract.endDate)) : false
+                  const isCritical = currentDate && contract.endDate ? isAfter(addDays(currentDate, 15), parseISO(contract.endDate)) : false
                   return (
                     <div key={i} className="flex items-center justify-between p-4 bg-muted/30 rounded-xl hover:bg-muted/50 transition-colors">
                       <div className="flex items-center gap-4">

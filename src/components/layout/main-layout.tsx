@@ -1,3 +1,4 @@
+
 "use client"
 
 import React from 'react'
@@ -10,15 +11,14 @@ import {
   BarChart3, 
   Settings,
   Bell,
-  Search,
-  Menu,
-  ChevronLeft
+  Search
 } from 'lucide-react'
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { PlaceHolderImages } from '@/lib/placeholder-images'
 
 const navigation = [
   { name: 'لوحة التحكم', href: '/', icon: LayoutDashboard },
@@ -31,6 +31,7 @@ const navigation = [
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const adminAvatar = PlaceHolderImages.find(img => img.id === 'admin-avatar')?.imageUrl || 'https://picsum.photos/seed/admin/100/100';
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -101,7 +102,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                   <p className="text-[10px] text-muted-foreground">مسؤول النظام</p>
                 </div>
                 <Avatar className="size-9 ring-2 ring-primary/10">
-                  <AvatarImage src="https://picsum.photos/seed/admin/100/100" />
+                  <AvatarImage src={adminAvatar} />
                   <AvatarFallback>AM</AvatarFallback>
                 </Avatar>
               </div>

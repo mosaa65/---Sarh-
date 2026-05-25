@@ -1,3 +1,4 @@
+
 {
   "placeholderImages": [
     {
@@ -23,6 +24,18 @@
       "description": "User profile avatar",
       "imageUrl": "https://picsum.photos/seed/mada4/100/100",
       "imageHint": "person portrait"
+    },
+    {
+      "id": "admin-avatar",
+      "description": "Admin profile picture",
+      "imageUrl": "https://picsum.photos/seed/admin/100/100",
+      "imageHint": "businessman portrait"
+    },
+    {
+      "id": "property-default",
+      "description": "Default property image",
+      "imageUrl": "https://picsum.photos/seed/prop/600/400",
+      "imageHint": "real estate"
     }
   ]
 }

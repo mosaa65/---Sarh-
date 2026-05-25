@@ -7,12 +7,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { MoreHorizontal, Phone, Mail, FileText, Plus, Search, Loader2, UserPlus } from 'lucide-react'
-import { useCollection, useFirestore } from '@/firebase'
+import { useCollection, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
+import { PlaceHolderImages } from '@/lib/placeholder-images'
 
 export function TenantLedger() {
   const db = useFirestore();
@@ -20,6 +21,8 @@ export function TenantLedger() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const defaultAvatar = PlaceHolderImages.find(img => img.id === 'user-avatar')?.imageUrl || 'https://picsum.photos/seed/mada4/100/100';
 
   const handleAddTenant = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -33,26 +36,31 @@ export function TenantLedger() {
       unitId: formData.get('unitId') as string,
       status: 'active',
       balance: 0,
-      avatarUrl: `https://picsum.photos/seed/${Math.random()}/100/100`,
+      avatarUrl: defaultAvatar,
       createdAt: serverTimestamp(),
     };
 
-    try {
-      addDoc(collection(db, 'tenants'), newTenant);
-      toast({
-        title: "تمت الإضافة",
-        description: "تم تسجيل المستأجر الجديد بنجاح.",
+    const tenantsRef = collection(db, 'tenants');
+
+    addDoc(tenantsRef, newTenant)
+      .then(() => {
+        toast({
+          title: "تمت الإضافة",
+          description: "تم تسجيل المستأجر الجديد بنجاح.",
+        });
+        setIsDialogOpen(false);
+      })
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: tenantsRef.path,
+          operation: 'create',
+          requestResourceData: newTenant,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
+        setIsSubmitting(false);
       });
-      setIsDialogOpen(false);
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "خطأ",
-        description: "حدث خطأ أثناء إضافة المستأجر.",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   return (
@@ -124,7 +132,7 @@ export function TenantLedger() {
               <CardContent className="p-6">
                 <div className="flex justify-between items-start mb-6">
                   <Avatar className="size-16 ring-4 ring-primary/10">
-                    <AvatarImage src={tenant.avatarUrl} />
+                    <AvatarImage src={tenant.avatarUrl || defaultAvatar} />
                     <AvatarFallback>{tenant.name.substring(0, 2)}</AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col items-end gap-2">
