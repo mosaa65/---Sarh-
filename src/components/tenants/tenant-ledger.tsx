@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { MoreHorizontal, Phone, Mail, FileText, Plus, Search, Loader2, UserPlus } from 'lucide-react'
+import { MoreHorizontal, Phone, Mail, FileText, Plus, Search, Loader2, UserPlus, MessageCircle, Send } from 'lucide-react'
 import { useCollection, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
@@ -17,7 +17,7 @@ import { PlaceHolderImages } from '@/lib/placeholder-images'
 
 export function TenantLedger() {
   const db = useFirestore();
-  const { data: tenants, loading } = useCollection(collection(db, 'tenants'));
+  const { data: tenants, loading } = useCollection(db ? collection(db, 'tenants') : null);
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -62,6 +62,11 @@ export function TenantLedger() {
         setIsSubmitting(false);
       });
   };
+
+  const handleWhatsApp = (phone: string, name: string) => {
+    const message = `مرحباً أستاذ ${name}، نود التواصل معكم بخصوص العقار الخاص بكم في مدى إنماء.`
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank')
+  }
 
   return (
     <div className="space-y-6">
@@ -133,15 +138,12 @@ export function TenantLedger() {
                 <div className="flex justify-between items-start mb-6">
                   <Avatar className="size-16 ring-4 ring-primary/10">
                     <AvatarImage src={tenant.avatarUrl || defaultAvatar} />
-                    <AvatarFallback>{tenant.name.substring(0, 2)}</AvatarFallback>
+                    <AvatarFallback>{tenant.name?.substring(0, 2)}</AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col items-end gap-2">
                     <Badge variant={tenant.status === 'active' ? 'default' : tenant.status === 'warning' ? 'secondary' : 'outline'} className="rounded-lg px-3 py-1">
                       {tenant.status === 'active' ? 'نشط' : tenant.status === 'warning' ? 'متأخر' : 'منتهي'}
                     </Badge>
-                    <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground">
-                      <MoreHorizontal className="size-5" />
-                    </Button>
                   </div>
                 </div>
 
@@ -150,28 +152,28 @@ export function TenantLedger() {
                   <p className="text-sm text-primary font-medium">{tenant.unitId || 'غير محدد'}</p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="grid grid-cols-2 gap-4 mb-6 text-right">
                   <div className="space-y-1">
                     <p className="text-[10px] text-muted-foreground font-bold tracking-wider uppercase">رقم الجوال</p>
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                      <Phone className="size-3 text-muted-foreground" />
+                    <div className="flex items-center gap-2 text-sm font-medium justify-end">
                       {tenant.phone}
+                      <Phone className="size-3 text-muted-foreground" />
                     </div>
                   </div>
                   <div className="space-y-1">
                     <p className="text-[10px] text-muted-foreground font-bold tracking-wider uppercase">الرصيد</p>
                     <p className={`text-sm font-bold ${tenant.balance < 0 ? 'text-destructive' : 'text-green-600'}`}>
-                      {tenant.balance === 0 ? 'لا يوجد' : `${Math.abs(tenant.balance).toLocaleString()} ر.س`}
+                      {tenant.balance === 0 ? '0.00' : `${Math.abs(tenant.balance).toLocaleString()}`} ر.س
                     </p>
                   </div>
                 </div>
 
-                <div className="flex gap-2">
-                  <Button className="flex-1 gap-2 rounded-xl" variant="outline">
-                    <FileText className="size-4" />
-                    العقد
+                <div className="grid grid-cols-2 gap-2">
+                  <Button className="gap-2 rounded-xl bg-green-600 hover:bg-green-700" onClick={() => handleWhatsApp(tenant.phone, tenant.name)}>
+                    <MessageCircle className="size-4" />
+                    واتساب
                   </Button>
-                  <Button className="flex-1 gap-2 rounded-xl" variant="outline" asChild>
+                  <Button className="gap-2 rounded-xl" variant="outline" asChild>
                     <a href={`tel:${tenant.phone}`}>
                       <Phone className="size-4" />
                       اتصال
