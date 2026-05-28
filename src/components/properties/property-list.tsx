@@ -7,8 +7,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Building2, MapPin, Plus, Search, Filter, Home, Store, Loader2 } from 'lucide-react'
 import Image from 'next/image'
-import { useCollection, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { useCollection, useFirestore, errorEmitter, FirestorePermissionError, useUser } from '@/firebase'
+import { collection, addDoc, serverTimestamp, query, where } from 'firebase/firestore'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -18,7 +18,10 @@ import { PlaceHolderImages } from '@/lib/placeholder-images'
 
 export function PropertyList() {
   const db = useFirestore();
-  const { data: properties, loading } = useCollection(collection(db, 'properties'));
+  const { user } = useUser();
+  const { data: properties, loading } = useCollection(
+    user ? query(collection(db, 'properties'), where('ownerId', '==', user.uid)) : null
+  );
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -27,6 +30,7 @@ export function PropertyList() {
 
   const handleAddProperty = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!user) return;
     setIsSubmitting(true);
     const formData = new FormData(e.currentTarget);
     
@@ -38,6 +42,7 @@ export function PropertyList() {
       occupiedUnits: 0,
       monthlyIncome: 0,
       imageUrl: defaultImage,
+      ownerId: user.uid,
       createdAt: serverTimestamp(),
     };
 
@@ -47,7 +52,7 @@ export function PropertyList() {
       .then(() => {
         toast({
           title: "تمت الإضافة",
-          description: "تمت إضافة العقار بنجاح إلى السجل.",
+          description: "تمت إضافة العقار بنجاح إلى محفظتك.",
         });
         setIsDialogOpen(false);
       })
@@ -68,8 +73,8 @@ export function PropertyList() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-extrabold font-headline text-slate-900 tracking-tight">سجل العقارات الرقمي</h2>
-          <p className="text-slate-500 mt-1">إدارة المباني والوحدات السكنية والتجارية.</p>
+          <h2 className="text-3xl font-extrabold font-headline text-slate-900 tracking-tight">سجل العقارات</h2>
+          <p className="text-slate-500 mt-1">إدارة محفظتك العقارية الخاصة.</p>
         </div>
         
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -79,25 +84,25 @@ export function PropertyList() {
               إضافة عقار جديد
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-[425px]" dir="rtl">
             <DialogHeader>
-              <DialogTitle className="font-headline text-xl">إضافة عقار جديد</DialogTitle>
+              <DialogTitle className="font-headline text-xl text-right">إضافة عقار جديد</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleAddProperty} className="space-y-4 py-4">
+            <form onSubmit={handleAddProperty} className="space-y-4 py-4 text-right">
               <div className="space-y-2">
                 <Label htmlFor="name">اسم العقار</Label>
-                <Input id="name" name="name" placeholder="مثلاً: عمارة الوفاء" required />
+                <Input id="name" name="name" placeholder="مثلاً: عمارة النرجس" required className="rounded-xl" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="address">الموقع / العنوان</Label>
-                <Input id="address" name="address" placeholder="المدينة، الحي..." required />
+                <Input id="address" name="address" placeholder="الحي، الشارع..." required className="rounded-xl" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="type">نوع العقار</Label>
                   <Select name="type" defaultValue="residential">
-                    <SelectTrigger>
-                      <SelectValue placeholder="اختر النوع" />
+                    <SelectTrigger className="rounded-xl">
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="residential">سكني</SelectItem>
@@ -107,13 +112,13 @@ export function PropertyList() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="units">عدد الوحدات</Label>
-                  <Input id="units" name="units" type="number" defaultValue="1" min="1" required />
+                  <Input id="units" name="units" type="number" defaultValue="1" min="1" required className="rounded-xl" />
                 </div>
               </div>
               <DialogFooter className="pt-4">
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                <Button type="submit" className="w-full h-12 rounded-xl" disabled={isSubmitting}>
                   {isSubmitting && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-                  حفظ العقار
+                  حفظ العقار في حسابي
                 </Button>
               </DialogFooter>
             </form>
@@ -126,14 +131,10 @@ export function PropertyList() {
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <input 
             type="text" 
-            placeholder="البحث عن اسم العقار أو الموقع..." 
+            placeholder="البحث في عقاراتك..." 
             className="w-full bg-transparent border-none pr-10 pl-4 py-2 text-sm focus:ring-0 outline-none"
           />
         </div>
-        <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
-          <Filter className="size-4" />
-          تصفية
-        </Button>
       </div>
 
       {loading ? (
@@ -157,60 +158,35 @@ export function PropertyList() {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 <div className="absolute bottom-4 right-4 left-4 flex justify-between items-end">
                   <div>
-                    <Badge className="mb-2 bg-white/20 backdrop-blur-md border-none text-white hover:bg-white/30">
+                    <Badge className="mb-2 bg-white/20 backdrop-blur-md border-none text-white">
                       {prop.type === 'residential' ? 'سكني' : 'تجاري'}
                     </Badge>
                     <h3 className="text-xl font-bold font-headline text-white">{prop.name}</h3>
                   </div>
                 </div>
               </div>
-              <CardContent className="p-6">
-                <div className="flex items-center gap-2 text-muted-foreground mb-4">
-                  <MapPin className="size-4 shrink-0" />
+              <CardContent className="p-6 text-right">
+                <div className="flex items-center justify-end gap-2 text-muted-foreground mb-4">
                   <span className="text-xs">{prop.address}</span>
+                  <MapPin className="size-4 shrink-0" />
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-muted/30 p-3 rounded-xl">
-                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">الوحدات</p>
-                    <div className="flex items-center gap-2">
-                      {prop.type === 'residential' ? <Home className="size-4 text-primary" /> : <Store className="size-4 text-primary" />}
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">الوحدات</p>
+                    <div className="flex items-center justify-end gap-2">
                       <span className="font-bold text-sm">{prop.occupiedUnits || 0} / {prop.units}</span>
+                      {prop.type === 'residential' ? <Home className="size-4 text-primary" /> : <Store className="size-4 text-primary" />}
                     </div>
                   </div>
                   <div className="bg-muted/30 p-3 rounded-xl">
-                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">الدخل الشهري</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">الدخل المتوقع</p>
                     <p className="font-bold text-sm text-primary">{prop.monthlyIncome?.toLocaleString() || 0} ر.س</p>
                   </div>
-                </div>
-
-                <div className="mt-6 flex items-center justify-between">
-                  <div className="flex -space-x-2 space-x-reverse">
-                    {[1, 2].map(i => (
-                      <div key={i} className="size-8 rounded-full border-2 border-white bg-slate-200 flex items-center justify-center text-[10px] font-bold">
-                        U{i}
-                      </div>
-                    ))}
-                    {prop.units > 2 && (
-                      <div className="size-8 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[10px] text-muted-foreground">
-                        +{prop.units - 2}
-                      </div>
-                    )}
-                  </div>
-                  <Button variant="outline" size="sm" className="rounded-lg">
-                    إدارة الوحدات
-                  </Button>
                 </div>
               </CardContent>
             </Card>
           ))}
-          {properties?.length === 0 && (
-            <div className="col-span-full py-20 text-center bg-slate-50 rounded-3xl border-2 border-dashed">
-              <Building2 className="size-12 mx-auto text-slate-300 mb-4" />
-              <h3 className="text-lg font-bold text-slate-600">لا يوجد عقارات حالياً</h3>
-              <p className="text-sm text-slate-400">ابدأ بإضافة أول عقار لك في المحفظة.</p>
-            </div>
-          )}
         </div>
       )}
     </div>
