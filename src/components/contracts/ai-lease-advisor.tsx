@@ -2,24 +2,30 @@
 "use client"
 
 import React, { useState, useMemo } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Sparkles, FileText, Send, CheckCircle2, Loader2, Download, Printer, Building2, User } from 'lucide-react'
+import { Sparkles, FileText, CheckCircle2, Loader2, Printer, Building2, User } from 'lucide-react'
 import { generateAIPoweredLease, AIPoweredLeaseGenerationInput } from '@/ai/flows/ai-powered-lease-generation'
 import { useToast } from '@/hooks/use-toast'
-import { useCollection, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase'
-import { collection, addDoc, doc, updateDoc, increment, serverTimestamp } from 'firebase/firestore'
+import { useCollection, useFirestore, useUser } from '@/firebase'
+import { collection, addDoc, doc, updateDoc, increment, serverTimestamp, query, where } from 'firebase/firestore'
 
 export function AILeaseAdvisor() {
   const db = useFirestore()
+  const { user } = useUser()
   const { toast } = useToast()
   
-  const { data: properties } = useCollection(db ? collection(db, 'properties') : null)
-  const { data: tenants } = useCollection(db ? collection(db, 'tenants') : null)
+  // فلترة العقارات والمستأجرين حسب المالك
+  const { data: properties } = useCollection(
+    user ? query(collection(db, 'properties'), where('ownerId', '==', user.uid)) : null
+  )
+  const { data: tenants } = useCollection(
+    user ? query(collection(db, 'tenants'), where('ownerId', '==', user.uid)) : null
+  )
 
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -28,7 +34,6 @@ export function AILeaseAdvisor() {
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>('')
   const [selectedTenantId, setSelectedTenantId] = useState<string>('')
   
-  // Current form data state to use during "Approve"
   const [currentContractData, setCurrentContractData] = useState<any>(null)
 
   const selectedProperty = useMemo(() => 
@@ -44,7 +49,7 @@ export function AILeaseAdvisor() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!selectedProperty || !selectedTenant) {
-      toast({ variant: "destructive", title: "خطأ", description: "يرجى اختيار العقار والمستأجر أولاً." })
+      toast({ variant: "destructive", title: "خطأ", description: "يرجى اختيار العقار والمستأجر من القوائم الجاهزة." })
       return
     }
 
@@ -81,8 +86,8 @@ export function AILeaseAdvisor() {
     } catch (error) {
       toast({
         variant: "destructive",
-        title: "خطأ",
-        description: "فشل إنشاء العقد. يرجى المحاولة مرة أخرى.",
+        title: "خطأ في التوليد",
+        description: "فشل إنشاء العقد. يرجى مراجعة الاتصال والمحاولة مرة أخرى.",
       })
     } finally {
       setLoading(false)
@@ -90,7 +95,7 @@ export function AILeaseAdvisor() {
   }
 
   const handleApproveContract = async () => {
-    if (!currentContractData || !selectedPropertyId || !selectedTenantId) return
+    if (!currentContractData || !selectedPropertyId || !selectedTenantId || !db || !user) return
     
     setSaving(true)
     try {
@@ -102,12 +107,13 @@ export function AILeaseAdvisor() {
         tenantId: selectedTenantId,
         status: 'active',
         content: result,
+        ownerId: user.uid,
         createdAt: serverTimestamp(),
       }
       
       await addDoc(contractRef, newContract)
 
-      // 2. Update Tenant Balance (Add accumulated debt if any, or set balance)
+      // 2. Update Tenant Balance and stats
       const tenantRef = doc(db, 'tenants', selectedTenantId)
       await updateDoc(tenantRef, {
         accumulatedDebt: increment(currentContractData.rentalAmount),
@@ -123,74 +129,69 @@ export function AILeaseAdvisor() {
       })
 
       toast({
-        title: "تم اعتماد العقد",
-        description: "تم حفظ العقد وتحديث أرصدة المستأجر وإحصائيات العقار بنجاح.",
+        title: "تم اعتماد العقد بنجاح",
+        description: "تم حفظ العقد في الأرشيف وتحديث الأرصدة المالية والمستندات.",
       })
       setResult(null)
     } catch (error) {
       toast({
         variant: "destructive",
         title: "خطأ في الاعتماد",
-        description: "حدث خطأ أثناء تحديث البيانات المالية.",
+        description: "حدث خطأ أثناء تحديث البيانات المالية. يرجى المحاولة لاحقاً.",
       })
     } finally {
       setSaving(false)
     }
   }
 
-  const handlePrint = () => {
-    const printWindow = window.open('', '_blank')
-    if (printWindow && result) {
-      printWindow.document.write(`<html><head><title>عقد إيجار - مدى إنماء</title><style>body{font-family: 'Cairo', sans-serif; direction: rtl; padding: 40px; line-height: 1.8;}</style></head><body>${result.replace(/\n/g, '<br/>')}</body></html>`)
-      printWindow.document.close()
-      printWindow.print()
-    }
-  }
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" dir="rtl">
       <div>
-        <h2 className="text-3xl font-extrabold font-headline text-slate-900 tracking-tight flex items-center gap-3">
+        <h2 className="text-3xl font-black font-headline text-slate-900 tracking-tight flex items-center gap-3">
           مستشار العقود الذكي
           <Sparkles className="size-6 text-primary fill-primary/20" />
         </h2>
-        <p className="text-slate-500 mt-1">توليد مسودات عقود إيجار احترافية مدعومة بالذكاء الاصطناعي مع ربط مالي تلقائي.</p>
+        <p className="text-slate-500 mt-1">توليد مسودات احترافية مدعومة بالذكاء الاصطناعي مع ربط محاسبي تلقائي.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <Card className="border-none shadow-lg rounded-2xl overflow-hidden">
-          <CardHeader className="bg-primary/5 border-b">
-            <CardTitle className="text-lg font-headline flex items-center gap-2">
+          <CardHeader className="bg-slate-50 border-b p-6">
+            <CardTitle className="text-lg font-headline flex items-center gap-2 font-black text-slate-800">
               <FileText className="size-5 text-primary" />
-              تفاصيل العقد والربط المالي
+              تفاصيل العقد والربط العقاري
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>اختيار العقار</Label>
+                  <Label className="font-bold">اختيار العقار من القائمة</Label>
                   <Select value={selectedPropertyId} onValueChange={setSelectedPropertyId} required>
-                    <SelectTrigger className="rounded-xl">
+                    <SelectTrigger className="rounded-xl h-12">
                       <SelectValue placeholder="اختر العقار المعني" />
                     </SelectTrigger>
                     <SelectContent>
-                      {properties?.map(p => (
+                      {properties?.length ? properties.map(p => (
                         <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                      ))}
+                      )) : (
+                        <div className="p-2 text-center text-sm">أضف عقاراتك أولاً</div>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>اختيار المستأجر</Label>
+                  <Label className="font-bold">اختيار المستأجر من القائمة</Label>
                   <Select value={selectedTenantId} onValueChange={setSelectedTenantId} required>
-                    <SelectTrigger className="rounded-xl">
+                    <SelectTrigger className="rounded-xl h-12">
                       <SelectValue placeholder="اختر المستأجر" />
                     </SelectTrigger>
                     <SelectContent>
-                      {tenants?.map(t => (
+                      {tenants?.length ? tenants.map(t => (
                         <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                      ))}
+                      )) : (
+                        <div className="p-2 text-center text-sm">أضف مستأجرين أولاً</div>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -198,13 +199,13 @@ export function AILeaseAdvisor() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="landlordName">اسم المالك (المؤجر)</Label>
-                  <Input id="landlordName" name="landlordName" required defaultValue="مكتب مدى إنماء للعقارات" className="rounded-xl" />
+                  <Label className="font-bold">اسم المالك (المؤجر)</Label>
+                  <Input name="landlordName" required defaultValue="مكتب مدى إنماء للعقارات" className="rounded-xl h-12" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="paymentFrequency">دورية الدفع</Label>
+                  <Label className="font-bold">دورية الدفع</Label>
                   <Select name="paymentFrequency" defaultValue="شهري">
-                    <SelectTrigger className="rounded-xl">
+                    <SelectTrigger className="rounded-xl h-12">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -219,51 +220,41 @@ export function AILeaseAdvisor() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>العملة</Label>
+                  <Label className="font-bold">العملة</Label>
                   <Select value={currency} onValueChange={setCurrency}>
-                    <SelectTrigger className="rounded-xl">
+                    <SelectTrigger className="rounded-xl h-12">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="SAR">ر.س</SelectItem>
-                      <SelectItem value="KWD">د.ك</SelectItem>
-                      <SelectItem value="AED">د.إ</SelectItem>
-                      <SelectItem value="USD">$</SelectItem>
+                      <SelectItem value="SAR">ر.س (ريال سعودي)</SelectItem>
+                      <SelectItem value="KWD">د.ك (دينار كويتي)</SelectItem>
+                      <SelectItem value="AED">د.إ (درهم إماراتي)</SelectItem>
+                      <SelectItem value="USD">$ (دولار أمريكي)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="rentalAmount">قيمة الإيجار</Label>
-                  <Input id="rentalAmount" name="rentalAmount" type="number" required placeholder="0.00" className="rounded-xl" />
+                  <Label className="font-bold">قيمة الإيجار</Label>
+                  <Input name="rentalAmount" type="number" required placeholder="0.00" className="rounded-xl h-12" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="securityDepositAmount">مبلغ التأمين</Label>
-                  <Input id="securityDepositAmount" name="securityDepositAmount" type="number" placeholder="0.00" className="rounded-xl" />
+                  <Label className="font-bold">مبلغ التأمين</Label>
+                  <Input name="securityDepositAmount" type="number" placeholder="0.00" className="rounded-xl h-12" />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="leaseStartDate">تاريخ البداية</Label>
-                  <Input id="leaseStartDate" name="leaseStartDate" type="date" required className="rounded-xl" />
+                  <Label className="font-bold">تاريخ البداية</Label>
+                  <Input name="leaseStartDate" type="date" required className="rounded-xl h-12" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="leaseEndDate">تاريخ النهاية</Label>
-                  <Input id="leaseEndDate" name="leaseEndDate" type="date" required className="rounded-xl" />
+                  <Label className="font-bold">تاريخ النهاية</Label>
+                  <Input name="leaseEndDate" type="date" required className="rounded-xl h-12" />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="maintenanceResponsibilities">مسؤوليات الصيانة</Label>
-                <Textarea id="maintenanceResponsibilities" name="maintenanceResponsibilities" placeholder="حدد من المسؤول عن الإصلاحات..." className="rounded-xl" />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="additionalTerms">شروط إضافية</Label>
-                <Textarea id="additionalTerms" name="additionalTerms" placeholder="أي بنود أخرى..." className="rounded-xl" />
-              </div>
-
-              <Button type="submit" className="w-full gap-2 py-6 rounded-xl shadow-lg font-bold text-lg" disabled={loading}>
+              <Button type="submit" className="w-full gap-2 py-6 rounded-xl shadow-lg font-black text-lg" disabled={loading}>
                 {loading ? <Loader2 className="size-6 animate-spin" /> : <Sparkles className="size-6" />}
                 توليد المسودة بالذكاء الاصطناعي
               </Button>
@@ -271,59 +262,57 @@ export function AILeaseAdvisor() {
           </CardContent>
         </Card>
 
-        <Card className="border-none shadow-lg rounded-2xl overflow-hidden min-h-[500px] flex flex-col">
-          <CardHeader className="bg-slate-900 text-white border-b border-white/10">
-            <CardTitle className="text-lg font-headline flex items-center justify-between">
+        <Card className="border-none shadow-lg rounded-2xl overflow-hidden min-h-[600px] flex flex-col">
+          <CardHeader className="bg-slate-900 text-white border-b border-white/10 p-6">
+            <CardTitle className="text-lg font-headline flex items-center justify-between font-black">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="size-5 text-primary" />
-                المسودة المقترحة
+                المسودة القانونية المقترحة
               </div>
               {result && (
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={handlePrint}>
-                    <Printer className="size-5" />
-                  </Button>
-                </div>
+                <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={() => window.print()}>
+                  <Printer className="size-5" />
+                </Button>
               )}
             </CardTitle>
           </CardHeader>
           <CardContent className="flex-1 p-0 overflow-hidden relative bg-white">
             {result ? (
-              <div className="h-full overflow-y-auto p-8 prose prose-slate max-w-none text-right whitespace-pre-wrap leading-loose font-body text-slate-700">
+              <div className="h-full overflow-y-auto p-10 prose prose-slate max-w-none text-right whitespace-pre-wrap leading-loose font-body text-slate-700">
                 {result}
               </div>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center p-12 text-center text-muted-foreground bg-muted/5">
-                <div className="bg-white p-6 rounded-3xl shadow-sm mb-6 border">
-                  <Sparkles className="size-12 text-primary/40" />
+              <div className="h-full flex flex-col items-center justify-center p-12 text-center text-muted-foreground bg-slate-50/50">
+                <div className="bg-white p-8 rounded-3xl shadow-sm mb-6 border-2 border-dashed border-slate-200">
+                  <Sparkles className="size-14 text-primary/30" />
                 </div>
-                <h4 className="font-bold text-slate-800 mb-2 font-headline">في انتظار البيانات</h4>
-                <p className="text-sm max-w-[250px]">اختر العقار والمستأجر وعبئ البيانات لتوليد العقد وربطه مالياً.</p>
+                <h4 className="font-black text-slate-800 mb-2 font-headline text-xl">في انتظار البيانات</h4>
+                <p className="max-w-[300px] leading-relaxed">اختر العقار والمستأجر وعبئ البيانات لتوليد عقد احترافي وربطه بالمنظومة المحاسبية.</p>
               </div>
             )}
             {loading && (
-              <div className="absolute inset-0 bg-white/80 backdrop-blur-md flex items-center justify-center z-10">
-                <div className="flex flex-col items-center gap-4">
-                  <div className="relative size-16">
+              <div className="absolute inset-0 bg-white/90 backdrop-blur-sm flex items-center justify-center z-20">
+                <div className="flex flex-col items-center gap-6">
+                  <div className="relative size-20">
                     <Loader2 className="size-full text-primary animate-spin" />
-                    <Sparkles className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-6 text-primary" />
+                    <Sparkles className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-8 text-primary" />
                   </div>
-                  <p className="font-bold text-slate-900 text-lg">جاري صياغة البنود القانونية...</p>
+                  <p className="font-black text-slate-900 text-xl font-headline">جاري صياغة البنود القانونية...</p>
                 </div>
               </div>
             )}
           </CardContent>
           {result && (
-            <div className="p-4 bg-slate-50 border-t flex gap-3">
+            <div className="p-6 bg-slate-50 border-t flex gap-4">
               <Button 
-                className="flex-1 rounded-xl h-12 font-bold" 
+                className="flex-1 rounded-xl h-14 font-black text-lg" 
                 onClick={handleApproveContract}
                 disabled={saving}
               >
-                {saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="ml-2 h-4 w-4" />}
-                اعتماد العقد وربط المستأجر
+                {saving ? <Loader2 className="ml-2 h-5 w-5 animate-spin" /> : <CheckCircle2 className="ml-2 h-5 w-5" />}
+                اعتماد العقد وتنشيط المستأجر
               </Button>
-              <Button variant="outline" className="flex-1 rounded-xl h-12 font-bold" onClick={() => setResult(null)}>إلغاء</Button>
+              <Button variant="outline" className="flex-1 rounded-xl h-14 font-bold" onClick={() => setResult(null)}>إلغاء</Button>
             </div>
           )}
         </Card>
