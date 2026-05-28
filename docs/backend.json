@@ -18,23 +18,28 @@
     },
     "Tenant": {
       "title": "Tenant",
-      "description": "Information about an individual or corporate tenant",
+      "description": "Detailed information about a tenant including financial standing",
       "type": "object",
       "properties": {
         "name": { "type": "string", "description": "Full name" },
         "phone": { "type": "string", "description": "Contact number" },
         "email": { "type": "string", "format": "email", "description": "Email address" },
         "status": { "type": "string", "enum": ["active", "warning", "inactive"], "description": "Current standing" },
-        "balance": { "type": "number", "description": "Financial balance (negative means debt)" },
-        "avatarUrl": { "type": "string", "format": "uri", "description": "Profile picture" },
-        "propertyId": { "type": "string", "description": "ID of the property they are in" },
-        "unitId": { "type": "string", "description": "Specific unit identifier" }
+        "balance": { "type": "number", "description": "Current financial balance" },
+        "accumulatedDebt": { "type": "number", "description": "Total debt from previous periods" },
+        "securityDeposit": { "type": "number", "description": "Refundable security deposit amount" },
+        "rentalType": { "type": "string", "enum": ["advance", "arrears"], "description": "Whether rent is paid in advance or arrears" },
+        "waterBill": { "type": "number", "description": "Current water service balance" },
+        "electricityBill": { "type": "number", "description": "Current electricity service balance" },
+        "propertyId": { "type": "string", "description": "ID of the property" },
+        "unitId": { "type": "string", "description": "Specific unit ID" },
+        "avatarUrl": { "type": "string", "format": "uri" }
       },
-      "required": ["name", "phone", "status"]
+      "required": ["name", "phone", "status", "unitId"]
     },
     "Contract": {
       "title": "Contract",
-      "description": "Legal rental agreement between landlord and tenant",
+      "description": "Legal rental agreement",
       "type": "object",
       "properties": {
         "tenantId": { "type": "string" },
@@ -48,18 +53,21 @@
     },
     "Payment": {
       "title": "Payment",
-      "description": "Transaction record for rent or services",
+      "description": "Financial transaction record",
       "type": "object",
       "properties": {
         "tenantId": { "type": "string" },
+        "tenantName": { "type": "string" },
         "propertyId": { "type": "string" },
+        "propertyName": { "type": "string" },
         "amount": { "type": "number" },
         "date": { "type": "string", "format": "date" },
         "method": { "type": "string", "enum": ["bank_transfer", "mada", "check", "cash"] },
         "status": { "type": "string", "enum": ["paid", "pending", "failed"] },
-        "receiptNo": { "type": "string" }
+        "receiptNo": { "type": "string" },
+        "notes": { "type": "string" }
       },
-      "required": ["tenantId", "amount", "date", "status"]
+      "required": ["tenantName", "amount", "date", "status"]
     }
   },
   "auth": {
@@ -76,7 +84,7 @@
     },
     "/contracts/{contractId}": {
       "schema": "Contract",
-      "description": "Digital archive of all rental contracts"
+      "description": "Archive of rental contracts"
     },
     "/payments/{paymentId}": {
       "schema": "Payment",
