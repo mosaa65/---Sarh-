@@ -1,13 +1,13 @@
 
-import type {Metadata} from 'next';
+import type { Metadata } from 'next';
 import './globals.css';
-import {Toaster} from '@/components/ui/toaster';
+import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { AuthGate } from '@/components/auth/auth-gate';
 
 export const metadata: Metadata = {
-  title: 'Mada Enma - Property Management',
-  description: 'Professional real estate and asset management platform by Enma Soft',
+  title: 'مدى إنماء - لإدارة العقارات',
+  description: 'نظام متطور لإدارة الأملاك والمستأجرين من إنماء سوفت',
 };
 
 export default function RootLayout({

@@ -1,5 +1,25 @@
-# Firebase Studio
 
-This is a NextJS starter in Firebase Studio.
+# مدى إنماء - نظام إدارة العقارات
 
-To get started, take a look at src/app/page.tsx.
+هذا المشروع مبني باستخدام Next.js و Firebase.
+
+## خطوات التشغيل المحلي:
+
+1. تأكد من تثبيت [Node.js](https://nodejs.org/).
+2. افتح المجلد في Terminal.
+3. قم بتثبيت المكتبات:
+   ```bash
+   npm install
+   ```
+4. ابدأ تشغيل المشروع:
+   ```bash
+   npm run dev
+   ```
+5. افتح المتصفح على: `http://localhost:3000`
+
+## الميزات المضمنة:
+- نظام تسجيل دخول آمن (Firebase Auth).
+- إدارة عقارات ومستأجرين كاملة (Firestore).
+- سندات قبض وربط مالي آلي.
+- توليد عقود ذكي بالذكاء الاصطناعي (Genkit).
+- خط Cairo الأنيق ودعم كامل للغة العربية.

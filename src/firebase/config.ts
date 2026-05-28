@@ -1,6 +1,6 @@
+
 'use client';
 
-// إعدادات Firebase الخاصة بمشروعك
 export const firebaseConfig = {
   apiKey: "AIzaSyBKed4banh94FqiPE5V-4KNHtyTG9QVahg",
   authDomain: "studio-7879548114-bbaaf.firebaseapp.com",
