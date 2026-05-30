@@ -48,7 +48,7 @@ export default function LoginPage() {
         }
         toast({
           title: "تم إنشاء الحساب",
-          description: "مرحباً بك في مدى إنماء!",
+          description: "مرحباً بك في منصة صرح العقارية!",
         })
       } else {
         await signInWithEmailAndPassword(auth, email, password)
@@ -96,8 +96,8 @@ export default function LoginPage() {
           <div className="mx-auto bg-primary size-16 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-primary/20 mb-6">
             <Building2 className="size-10" />
           </div>
-          <h1 className="text-3xl font-extrabold font-headline tracking-tight text-slate-900">مدى إنماء</h1>
-          <p className="text-slate-500 mt-2">نظام إدارة العقارات المتطور</p>
+          <h1 className="text-3xl font-extrabold font-headline tracking-tight text-slate-900">صرح</h1>
+          <p className="text-slate-500 mt-2">نظام إدارة العقارات الذكي</p>
         </div>
 
         <Card className="border-none shadow-2xl rounded-3xl overflow-hidden">

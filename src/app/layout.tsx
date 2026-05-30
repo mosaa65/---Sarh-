@@ -6,8 +6,8 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { AuthGate } from '@/components/auth/auth-gate';
 
 export const metadata: Metadata = {
-  title: 'مدى إنماء - لإدارة العقارات',
-  description: 'نظام متطور لإدارة الأملاك والمستأجرين من إنماء سوفت',
+  title: 'صرح - لإدارة العقارات الذكية',
+  description: 'منصة صرح المتطورة لإدارة الأملاك والمستأجرين وأتمتة العقود بالذكاء الاصطناعي',
 };
 
 export default function RootLayout({

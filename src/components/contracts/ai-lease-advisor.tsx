@@ -145,8 +145,8 @@ export function AILeaseAdvisor() {
   }
 
   return (
-    <div className="space-y-6" dir="rtl">
-      <div>
+    <div className="space-y-6 print:space-y-0" dir="rtl">
+      <div className="print:hidden">
         <h2 className="text-3xl font-black font-headline text-slate-900 tracking-tight flex items-center gap-3">
           مستشار العقود الذكي
           <Sparkles className="size-6 text-primary fill-primary/20" />
@@ -154,8 +154,8 @@ export function AILeaseAdvisor() {
         <p className="text-slate-500 mt-1">توليد مسودات احترافية مدعومة بالذكاء الاصطناعي مع ربط محاسبي تلقائي.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <Card className="border-none shadow-lg rounded-2xl overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 print:block print:w-full">
+        <Card className="border-none shadow-lg rounded-2xl overflow-hidden print:hidden">
           <CardHeader className="bg-slate-50 border-b p-6">
             <CardTitle className="text-lg font-headline flex items-center gap-2 font-black text-slate-800">
               <FileText className="size-5 text-primary" />
@@ -200,7 +200,7 @@ export function AILeaseAdvisor() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="font-bold">اسم المالك (المؤجر)</Label>
-                  <Input name="landlordName" required defaultValue="مكتب مدى إنماء للعقارات" className="rounded-xl h-12" />
+                  <Input name="landlordName" required defaultValue="مكتب صرح العقاري" className="rounded-xl h-12" />
                 </div>
                 <div className="space-y-2">
                   <Label className="font-bold">دورية الدفع</Label>
@@ -262,8 +262,8 @@ export function AILeaseAdvisor() {
           </CardContent>
         </Card>
 
-        <Card className="border-none shadow-lg rounded-2xl overflow-hidden min-h-[600px] flex flex-col">
-          <CardHeader className="bg-slate-900 text-white border-b border-white/10 p-6">
+        <Card className="border-none shadow-lg rounded-2xl overflow-hidden min-h-[600px] flex flex-col print:shadow-none print:border-none print:bg-white print:min-h-0 print:w-full">
+          <CardHeader className="bg-slate-900 text-white border-b border-white/10 p-6 print:hidden">
             <CardTitle className="text-lg font-headline flex items-center justify-between font-black">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="size-5 text-primary" />
@@ -276,9 +276,9 @@ export function AILeaseAdvisor() {
               )}
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 p-0 overflow-hidden relative bg-white">
+          <CardContent className="flex-1 p-0 overflow-hidden relative bg-white print:overflow-visible">
             {result ? (
-              <div className="h-full overflow-y-auto p-10 prose prose-slate max-w-none text-right whitespace-pre-wrap leading-loose font-body text-slate-700">
+              <div className="h-full overflow-y-auto p-10 print:p-0 prose prose-slate max-w-none text-right whitespace-pre-wrap leading-loose font-body text-slate-700 print:text-black print:overflow-visible">
                 {result}
               </div>
             ) : (
@@ -303,7 +303,7 @@ export function AILeaseAdvisor() {
             )}
           </CardContent>
           {result && (
-            <div className="p-6 bg-slate-50 border-t flex gap-4">
+            <div className="p-6 bg-slate-50 border-t flex gap-4 print:hidden">
               <Button 
                 className="flex-1 rounded-xl h-14 font-black text-lg" 
                 onClick={handleApproveContract}

@@ -52,16 +52,16 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="flex min-h-screen w-full bg-background overflow-hidden">
-        <Sidebar className="border-l" side="right">
+      <div className="flex min-h-screen w-full bg-background overflow-hidden print:min-h-0 print:h-auto">
+        <Sidebar className="border-l print:hidden" side="right">
           <SidebarHeader className="p-6">
             <div className="flex items-center gap-3">
               <div className="bg-primary p-2 rounded-xl text-primary-foreground">
                 <Building2 className="size-6" />
               </div>
               <div>
-                <h1 className="text-xl font-bold font-headline tracking-tight">مدى إنماء</h1>
-                <p className="text-xs text-muted-foreground">لإدارة العقارات</p>
+                <h1 className="text-xl font-bold font-headline tracking-tight">صرح</h1>
+                <p className="text-xs text-muted-foreground">لإدارة العقارات الذكية</p>
               </div>
             </div>
           </SidebarHeader>
@@ -94,8 +94,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           </SidebarFooter>
         </Sidebar>
 
-        <main className="flex-1 flex flex-col h-screen overflow-hidden text-right">
-          <header className="h-16 border-b bg-card px-8 flex items-center justify-between sticky top-0 z-10 shrink-0">
+        <main className="flex-1 flex flex-col h-screen overflow-hidden text-right print:h-auto print:overflow-visible">
+          <header className="h-16 border-b bg-card px-8 flex items-center justify-between sticky top-0 z-10 shrink-0 print:hidden">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="md:hidden" />
               <div className="relative max-w-md hidden md:block">
@@ -138,8 +138,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             </div>
           </header>
 
-          <div className="flex-1 overflow-y-auto p-8 bg-background">
-            <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
+          <div className="flex-1 overflow-y-auto p-8 bg-background print:p-0 print:bg-white print:overflow-visible">
+            <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500 print:space-y-0">
               {children}
             </div>
           </div>

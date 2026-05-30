@@ -8,23 +8,42 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
-import { useCollection, useFirestore } from '@/firebase'
-import { collection, query, orderBy, limit } from 'firebase/firestore'
+import { useCollection, useFirestore, useUser } from '@/firebase'
+import { collection, query, orderBy, limit, where } from 'firebase/firestore'
 import { isAfter, addDays, parseISO } from 'date-fns'
 
 export function BentoDashboard() {
   const db = useFirestore()
+  const { user } = useUser()
   const [currentDate, setCurrentDate] = useState<Date | null>(null)
 
   useEffect(() => {
     setCurrentDate(new Date())
   }, [])
   
-  const { data: properties, loading: propsLoading } = useCollection(db ? collection(db, 'properties') : null)
-  const { data: tenants, loading: tenantsLoading } = useCollection(db ? collection(db, 'tenants') : null)
-  const { data: contracts, loading: contractsLoading } = useCollection(
-    db ? query(collection(db, 'contracts'), orderBy('endDate', 'asc'), limit(4)) : null
+  const { data: properties, loading: propsLoading } = useCollection(
+    user ? query(collection(db, 'properties'), where('ownerId', '==', user.uid)) : null
   )
+  const { data: tenants, loading: tenantsLoading } = useCollection(
+    user ? query(collection(db, 'tenants'), where('ownerId', '==', user.uid)) : null
+  )
+  const { data: payments, loading: paymentsLoading } = useCollection(
+    user ? query(collection(db, 'payments'), where('ownerId', '==', user.uid)) : null
+  )
+  const { data: allContracts, loading: contractsLoading } = useCollection(
+    user ? query(collection(db, 'contracts'), where('ownerId', '==', user.uid)) : null
+  )
+
+  const contracts = useMemo(() => {
+    if (!allContracts) return []
+    return [...allContracts]
+      .sort((a: any, b: any) => {
+        if (!a.endDate) return 1
+        if (!b.endDate) return -1
+        return a.endDate.localeCompare(b.endDate)
+      })
+      .slice(0, 4)
+  }, [allContracts])
 
   const stats = useMemo(() => {
     if (!properties || !tenants) return { 
@@ -33,7 +52,8 @@ export function BentoDashboard() {
       activeTenants: 0, 
       monthlyIncome: 0,
       occupiedUnits: 0,
-      occupancyRate: 0 
+      occupancyRate: 0,
+      totalArrears: 0
     }
 
     const totalProps = properties.length
@@ -42,11 +62,25 @@ export function BentoDashboard() {
     const activeTenants = tenants.filter((t: any) => t.status === 'active').length
     const monthlyIncome = properties.reduce((acc: number, p: any) => acc + (Number(p.monthlyIncome) || 0), 0)
     const occupancyRate = totalUnits > 0 ? Math.round((occupiedUnits / totalUnits) * 100) : 0
+    const totalArrears = tenants.reduce((acc: number, t: any) => acc + (Number(t.accumulatedDebt || 0) + Number(t.balance || 0)), 0)
 
-    return { totalProps, totalUnits, activeTenants, monthlyIncome, occupiedUnits, occupancyRate }
+    return { totalProps, totalUnits, activeTenants, monthlyIncome, occupiedUnits, occupancyRate, totalArrears }
   }, [properties, tenants])
 
-  const isLoading = propsLoading || tenantsLoading
+  const currentMonthPaidAmount = useMemo(() => {
+    if (!payments || !currentDate) return 0
+    const currentYearMonth = currentDate.toISOString().substring(0, 7) // "YYYY-MM"
+    return payments
+      .filter((p: any) => p.status === 'paid' && p.date && p.date.startsWith(currentYearMonth))
+      .reduce((acc: number, p: any) => acc + (Number(p.amount) || 0), 0)
+  }, [payments, currentDate])
+
+  const collectionRate = useMemo(() => {
+    if (stats.monthlyIncome === 0) return 0
+    return Math.round((currentMonthPaidAmount / stats.monthlyIncome) * 100)
+  }, [currentMonthPaidAmount, stats.monthlyIncome])
+
+  const isLoading = propsLoading || tenantsLoading || !user
 
   return (
     <div className="space-y-8">
@@ -70,10 +104,10 @@ export function BentoDashboard() {
         />
         <StatCard 
           label="المستحقات المتأخرة" 
-          value="0 ر.س" 
-          description="لا توجد متأخرات مسجلة" 
+          value={isLoading ? '...' : `${stats.totalArrears.toLocaleString()} ر.س`} 
+          description={stats.totalArrears > 0 ? 'مستحقة للدفع فوراً' : 'لا توجد متأخرات مسجلة'} 
           icon={FileWarning} 
-          className="bg-destructive/5"
+          className="bg-destructive/5 text-destructive"
         />
         <StatCard 
           label="الدخل الشهري المتوقع" 
@@ -193,11 +227,15 @@ export function BentoDashboard() {
           </CardHeader>
           <CardContent>
             <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold">0%</span>
-              <span className="text-xs text-muted-foreground">من الهدف الشهري</span>
+              <span className="text-2xl font-bold">{isLoading || paymentsLoading ? '...' : `${collectionRate}%`}</span>
+              <span className="text-xs text-muted-foreground">من الهدف الشهري ({stats.monthlyIncome.toLocaleString()} ر.س)</span>
             </div>
-            <Progress value={0} className="h-2 mt-4" />
-            <p className="text-xs text-muted-foreground mt-4">سجل المدفوعات لعرض التحصيل</p>
+            <Progress value={isLoading || paymentsLoading ? 0 : Math.min(100, collectionRate)} className="h-2 mt-4" />
+            <p className="text-xs text-muted-foreground mt-4">
+              {currentMonthPaidAmount > 0 
+                ? `تم تحصيل ${currentMonthPaidAmount.toLocaleString()} ر.س هذا الشهر` 
+                : 'سجل المدفوعات لعرض التحصيل المالي لهذا الشهر'}
+            </p>
           </CardContent>
         </Card>
         
